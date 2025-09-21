@@ -1,0 +1,44 @@
+# This file configures the Krum defense against the model poisoning (sabotage) attack.
+
+# --- Select the Krum defense algorithm ---
+name: "fluke.algorithms.krum_fedavg.KrumFedAVG"
+
+hyperparameters:
+  model: "MNIST_2NN"
+
+  # --- Krum is a server-side defense, so its parameters go here ---
+  server:
+    weighted: true
+    
+    # 'krum_f': The number of malicious clients Krum is configured to tolerate.
+    # In our setup, 10 clients participate per round (100 total * 10% eligible).
+    # With a 30% attacker fraction, we expect 3 malicious clients per round.
+    # Setting f=3 is the appropriate choice for this experiment.
+    krum_f: 3
+
+  # The client configuration remains the same, but with the model poisoning attack active.
+  client:
+    model: "MNIST_2NN"
+    loss: "CrossEntropyLoss"
+    local_epochs: 2
+    batch_size: 32
+    
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+    
+    scheduler:
+      gamma: 1.0
+      step_size: 1
+    
+    # --- Attack Configuration ---
+    # We enable the sabotage attack to test our Krum defense.
+    attack:
+      enabled: true
+      fraction: 0.3
+      
+      # This is the key change: select the sabotage attack.
+      type: "model_poisoning"
+      
+      # This parameter is read by the ModelPoisoningAttacker.
+      strength: 20.0

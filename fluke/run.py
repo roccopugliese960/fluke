@@ -1,5 +1,7 @@
 """`fluke` command line interface."""
 
+from fluke import DDict
+import yaml
 import os
 import sys
 import uuid
@@ -150,6 +152,35 @@ def federation(
         exit(1)
     except Exception as e:
         raise e
+    
+
+		# --- THE DEFINITIVE FIX: NOW WITH TYPE CONVERSION ---
+    if cfg.get("save") is None:
+        typer.secho(
+            "WARNING: `cfg.save` is None. Attempting to manually reload from experiment file.",
+            fg=typer.colors.YELLOW,
+        )
+        try:
+            with open(exp_cfg, 'r') as f:
+                manual_cfg = yaml.safe_load(f)
+            
+            if "save" in manual_cfg and manual_cfg["save"] is not None:
+                # --- THE CRITICAL CHANGE IS ON THE LINE BELOW ---
+                # We convert the standard `dict` into the special `DDict` object
+                # that the rest of the framework expects.
+                cfg["save"] = DDict(manual_cfg["save"])
+                typer.secho("SUCCESS: Manually injected 'save' configuration as DDict.", fg=typer.colors.GREEN)
+            else:
+                cfg["save"] = DDict({}) # Ensure it's a DDict even when empty
+                typer.secho(
+                    "WARNING: 'save' block not found. Saving is disabled.",
+                    fg=typer.colors.YELLOW,
+                )
+        except Exception as e:
+            typer.secho(f"ERROR: Failed to manually load {exp_cfg}. Error: {e}", fg=typer.colors.RED)
+            cfg["save"] = DDict({})
+            
+    # --- END OF THE FIX ---
 
     _run_federation(cfg, resume)
 
@@ -183,6 +214,12 @@ def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
     from .data.datasets import Datasets  # NOQA
     from .evaluation import ClassificationEval  # NOQA
     from .utils.log import get_logger  # NOQA
+
+		# === ADD THE FOLLOWING TWO LINES OF CODE HERE ===
+    # This is a robust check to prevent the TypeError.
+    # If the 'save' block is missing or parsed as None, we create an empty dictionary.
+    if cfg.get("save") is None:
+        cfg["save"] = {}
 
     FlukeENV().configure(cfg)
     data_container = Datasets.get(**cfg.data.dataset)

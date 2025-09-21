@@ -1,0 +1,38 @@
+# This is the definitive experiment configuration.
+
+data:
+  dataset: {name: mnist, path: ./data}
+  #distribution: {name: iid}
+  distribution: 
+    name: lbl_qnt
+    class_per_client: 2
+  
+  sampling_perc: 1.0
+  client_split: 0.8
+  keep_test: true
+  server_test: true
+
+exp:
+  device: cpu
+  seed: 42
+
+eval:
+  task: classification
+  eval_every: 1
+  pre_fit: false
+  post_fit: true
+  server: true
+
+logger: {name: Log}
+
+protocol:
+  eligible_perc: 0.1
+  n_clients: 100
+  n_rounds: 50
+
+# The save block MUST be present and correctly indented.
+# 'save:' should have NO spaces before it.
+save:
+  path: ./models
+  save_every: -1
+  global_only: true

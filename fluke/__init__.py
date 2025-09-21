@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Collection, Union
 
 import numpy as np
 import torch
+
 from diskcache import Cache
 from omegaconf import DictConfig, ListConfig
 from rich.console import Group
@@ -395,7 +396,15 @@ class FlukeENV(metaclass=Singleton):
         self.set_seed(cfg.exp.seed)
         self.set_device(cfg.exp.device)
         self.set_inmemory(cfg.exp.inmemory)
-        self.set_save_options(**cfg.save)
+        # Original problematic line:
+        # self.set_save_options(**cfg.save)
+        
+        # New robust code:
+        # We check if the 'save' key exists and is not None before trying to unpack it.
+        # This gracefully handles cases where the save block is missing from the config,
+        # preventing the TypeError permanently.
+        if cfg.save is not None and isinstance(cfg.save, dict):
+            self.set_save_options(**cfg.save)
         self.set_eval_cfg(**cfg.eval)
 
     def get_seed(self) -> int:

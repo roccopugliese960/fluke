@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import Any, Callable, Collection, Union, Sequence
 
 import torch
+import typer
 
 from ..utils import ServerObserver, get_loss, get_model
 
@@ -19,6 +20,10 @@ sys.path.append("..")
 
 from .. import DDict, FlukeENV, custom_formatwarning  # NOQA
 from ..client import Client  # NOQA
+
+# --- IMPORTING OUR ATTACKER CLIENTS ---
+from ..attacker_client import ModelPoisoningAttacker, BackdoorAttackerClient
+
 from ..comm import ChannelObserver  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
@@ -432,6 +437,79 @@ class CentralizedFL(ServerObserver):
         if freq == -1:
             self.save(path, g_only, round - 1)
 
+class VulnerableCentralizedFL(CentralizedFL):
+    """
+    An extension of CentralizedFL that is vulnerable to attacks by configuration.
+    It overrides the client initialization process to create malicious clients
+    if specified in the hyper-parameters.
+    """
+
+    def init_clients(
+        self,
+        clients_tr_data: list[FastDataLoader],
+        clients_te_data: list[FastDataLoader],
+        config: DDict,
+    ) -> Sequence[Client]:
+        """
+        Creates the clients, potentially including attackers, and ensures they are
+        correctly configured.
+        """
+        # --- Read Attack Configuration ---
+        attack_config = config.get("attack", {})
+        is_attack_enabled = attack_config.get("enabled", False)
+        attacker_fraction = attack_config.get("fraction", 0.0)
+        n_attackers = int(self.n_clients * attacker_fraction)
+        attack_type = attack_config.get("type", "model_poisoning")
+
+        if is_attack_enabled:
+            typer.secho(
+                f"Algorithm Setup: Creating {n_attackers} malicious clients of type '{attack_type}'.",
+                fg=typer.colors.RED,
+            )
+
+        # --- Standard Client Initialization Setup ---
+        self._fix_opt_cfg(config.optimizer)
+        optimizer_cfg = OptimizerConfigurator(
+            optimizer_cfg=config.optimizer, scheduler_cfg=config.scheduler
+        )
+        loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
+        
+        clients = []
+        for i in range(self.n_clients):
+            # --- Logic to choose the correct client class ---
+            ClientClass = self.get_client_class()  # Default to honest client
+
+            if is_attack_enabled and i < n_attackers:
+                if attack_type == "model_poisoning":
+                    ClientClass = ModelPoisoningAttacker
+                elif attack_type == "backdoor":
+                    ClientClass = BackdoorAttackerClient
+                else:
+                    raise ValueError(f"Unknown attack type specified in config: {attack_type}")
+            
+            # --- Instantiate the chosen client class ---
+            # We pass only the arguments that the base Client constructor understands.
+            # The 'attack' block is excluded here, as it would cause an error.
+            client_instance = ClientClass(
+                index=i,
+                train_set=clients_tr_data[i],
+                test_set=clients_te_data[i],
+                optimizer_cfg=optimizer_cfg,
+                loss_fn=deepcopy(loss),
+                **config.exclude("optimizer", "loss", "batch_size", "scheduler", "attack", "model"),
+            )
+            
+            # --- OPTIMAL CHANGE: Configuration Injection ---
+            # If the created client is one of our special attackers, we manually
+            # attach the full client configuration to it. This allows the attacker
+            # to access its own parameters (like 'strength' or 'target_label')
+            # without us having to modify the base Client's constructor.
+            if isinstance(client_instance, (ModelPoisoningAttacker, BackdoorAttackerClient)):
+                client_instance.custom_config = config
+            
+            clients.append(client_instance)
+        
+        return clients
 
 class PersonalizedFL(CentralizedFL):
     """Personalized Federated Learning algorithm. This class is a simple extension of the

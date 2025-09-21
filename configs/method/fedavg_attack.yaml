@@ -1,0 +1,27 @@
+name: "fluke.algorithms.fedavg.FedAVG"
+
+hyperparameters:
+  model: "MNIST_2NN"
+  server:
+    weighted: true
+  client:
+    model: "MNIST_2NN"
+    loss: CrossEntropyLoss
+    local_epochs: 2
+    batch_size: 32
+
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0001
+    
+    scheduler:
+      gamma: 1.0
+      step_size: 1
+
+    # --- Attack Configuration ---
+    # The attack is ENABLED and configured here.
+    attack:
+      enabled: true
+      fraction: 0.3
+      strength: 20.0

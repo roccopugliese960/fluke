@@ -1,0 +1,25 @@
+name: "fluke.algorithms.robust_fedavg.RobustFedAVG"
+
+hyperparameters:
+  model: "MNIST_2NN"
+  server:
+    weighted: true
+  client:
+    model: "MNIST_2NN"
+    loss: "CrossEntropyLoss"
+    local_epochs: 2
+    batch_size: 32
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+    scheduler:
+      gamma: 1.0
+      step_size: 1
+    
+    
+    attack:
+      enabled: true
+      fraction: 0.8   # with the previous value of 0.3, the attack wasn't successful
+      type: "backdoor"
+      backdoor_trigger_label: 7
+      backdoor_target_label: 1

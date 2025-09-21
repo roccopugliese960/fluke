@@ -1,0 +1,31 @@
+name: "fluke.algorithms.fedavg.FedAVG"
+
+hyperparameters:
+  model: "MNIST_2NN"
+  server:
+    weighted: true
+  client:
+    model: "MNIST_2NN"
+    loss: CrossEntropyLoss
+    local_epochs: 2 # More epochs can make the backdoor stronger
+    batch_size: 32
+
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+    
+    scheduler:
+      gamma: 1.0
+      step_size: 1
+
+    # --- Backdoor Attack Configuration ---
+    attack:
+      enabled: true
+      fraction: 0.3      # 30% of clients will perform the backdoor attack.
+      
+      # This is the crucial new field our code looks for.
+      type: "backdoor"
+      
+      # These parameters control the backdoor's behavior.
+      backdoor_trigger_label: 7 # We will poison images of the digit '7'.
+      backdoor_target_label: 1  # We will teach the model to classify them as '1'.

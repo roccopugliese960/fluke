@@ -1,0 +1,40 @@
+# This file configures our advanced Krum defense against the backdoor attack.
+
+# --- Select the Krum defense algorithm ---
+name: "fluke.algorithms.krum_fedavg.KrumFedAVG"
+
+hyperparameters:
+  model: "MNIST_2NN"
+
+  # --- Krum is a server-side defense, so its parameters go here ---
+  server:
+    weighted: true
+    
+    # 'krum_f': This is the number of malicious clients the Krum algorithm
+    # is configured to tolerate in each round.
+    # Our experiment settings: 100 clients total, 10% selected each round (10 clients).
+    # 30% of total clients are malicious, so we can expect ~3 attackers per round.
+    # We set f=3 to match this expectation.
+    krum_f: 3
+
+  # The client configuration remains the same, with the backdoor attack active.
+  client:
+    model: "MNIST_2NN"
+    loss: "CrossEntropyLoss"
+    local_epochs: 2
+    batch_size: 32
+    
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+    
+    scheduler:
+      gamma: 1.0
+      step_size: 1
+    
+    attack:
+      enabled: true
+      fraction: 0.3
+      type: "backdoor"
+      backdoor_trigger_label: 7
+      backdoor_target_label: 1

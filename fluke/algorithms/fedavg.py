@@ -12,10 +12,11 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from . import CentralizedFL  # NOQA
+'''from . import CentralizedFL  # NOQA'''
+from . import VulnerableCentralizedFL
 
 __all__ = ["FedAVG"]
 
 
-class FedAVG(CentralizedFL):
+class FedAVG(VulnerableCentralizedFL):
     pass
